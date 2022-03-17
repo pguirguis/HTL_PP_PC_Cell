@@ -461,7 +461,7 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
 
 PP_PC_power_n = [PC_PP_power[2],PC_PP_power[1],PC_PP_power[4],PC_PP_power[3]]
 PP_Cell_power_n = PP_Cell_power[1:]
-PC_Cell_power_n = PC_Cell_power[1:]
+PC_Cell_power_n = np.ones(4)
 k_PP_PC_short = np.append(PP_short_kf,PC_short_kf)
 k_PP_PC_short = np.append(k_PP_PC_short,PP_PC_power_n)
 k_PP_Cell_short = np.append(PP_short_kf,Cell_short_kf)

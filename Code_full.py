@@ -21,6 +21,8 @@ k_n1 = 11
 k_n2 = 5
 k_n3 = 9
 
+factor = 1
+
 df = pd.read_excel('Kinetics_data_calculated.xls', sheet_name = 'Summary',index_col=None, header=None)
 
 
@@ -32,20 +34,23 @@ t = np.append(0,df[3:9,0])
 
 # given data we want to fit
 
-Cell_data0 = np.vstack((x0,df[3:9,1:5] ))
-PP_data0 = np.vstack((x0,df[3:8,5:9] ))
-PC_data0 = np.vstack((x0,df[3:9,9:13] ))
-Cell_sigma0 = np.vstack((sx0,df[11:17,1:5] ))
-PP_sigma0 = np.vstack((sx0,df[11:16,5:9] ))
-PC_sigma0 = np.vstack((sx0,df[11:17,9:13] ))
-PP_Cell_data0 = np.vstack((x0,df[3:9,13:17] ))
-PC_Cell_data0 = np.vstack((x0,df[3:9,17:21] ))
-PP_PC_data0 = np.vstack((x0,df[3:9,21:25] ))
-PP_PC_Cell_data0 = np.vstack((x0,df[3:9,25:29] ))
-PP_Cell_sigma0 = np.vstack((sx0,df[11:17,13:17] ))
-PC_Cell_sigma0 = np.vstack((sx0,df[11:17,17:21] ))
-PP_PC_sigma0 = np.vstack((sx0,df[11:17,21:25] ))
-PP_PC_Cell_sigma0 = np.vstack((sx0,df[11:17,25:29] ))
+Cell_data0 = np.vstack((x0,df[3:9,1:5]))
+PP_data0 = np.vstack((x0,df[3:8,5:9]))
+PC_data0 = np.vstack((x0,df[3:9,9:13]))
+Cell_sigma0 = np.vstack((sx0,df[11:17,1:5]))
+Cell_data0[:,1:3] = Cell_data0[:,1:3]*factor
+PP_data0[:,1:3] = PP_data0[:,1:3]*factor
+PC_data0[:,1:3] = PC_data0[:,1:3]*factor
+PP_sigma0 = np.vstack((sx0,df[11:16,5:9]))
+PC_sigma0 = np.vstack((sx0,df[11:17,9:13]))
+PP_Cell_data0 = np.vstack((x0,df[3:9,13:17]))
+PC_Cell_data0 = np.vstack((x0,df[3:9,17:21]))
+PP_PC_data0 = np.vstack((x0,df[3:9,21:25]))
+PP_PC_Cell_data0 = np.vstack((x0,df[3:9,25:29]))
+PP_Cell_sigma0 = np.vstack((sx0,df[11:17,13:17]))
+PC_Cell_sigma0 = np.vstack((sx0,df[11:17,17:21]))
+PP_PC_sigma0 = np.vstack((sx0,df[11:17,21:25]))
+PP_PC_Cell_sigma0 = np.vstack((sx0,df[11:17,25:29]))
 
 t = np.reshape(t,-1)
 
@@ -67,8 +72,10 @@ PC_PP_sigma = df[2:9,2]
 
 
 def coupled(k,a,b,x_S1,x_S2):
-    if not(math.isfinite(k)) or x_S1 < 0 or x_S2 < 0:
+    if not(math.isfinite(k)):
         r = 0
+    elif  x_S1 < 0 or x_S2 < 0:
+        r = -k*pow(abs(x_S1),a)*pow(abs(x_S2),b)
     else:
         r = k*pow(x_S1,a)*pow(x_S2,b)
         if not(math.isfinite(r)) :
@@ -262,10 +269,10 @@ def ode3(x, tspan, ks, k):
     r28 = k28*x_Aq_S12   # Aq12  -> G12
     r30 = k30*x_B_S12    # B12   -> S_new12
     r31 = k31*x_Aq_S12   # Aq12  -> S_new12
-
+    
     r24 = coupled(k24,1,1,x_S1,x_S2) # S1+S2 -> Aq12
-    r29 = coupled(k29,1,1,x_S1,x_S2) # S1+S2 -> G12
     r23 = coupled(k23,a,b,x_S1,x_S2) # S1 + S2 -> B12
+    r29 = coupled(k29,1,1,x_S1,x_S2)    # S1+S2 -> G12
     
 
     sol = [-r1+r2-r3+r4-r9-(y*r23)-r24-r29, -r12+r13-r14+r15-r20-(z*r23)-r24-r29, r1+r5-r2-r6-r7-r10, r12-r13+r16-r17-r18-r21, (y+z)*r23+r25-r26-r27-r30, r3+r6-r4-r5-r8-r11, r14+r17-r15-r16-r19-r22, r24*2-r25+r26-r28-r31, r7+r8+r9,r18+r19+r20,r27+r28+r29*2,r10+r11,r21+r22,r30+r31]
@@ -296,6 +303,7 @@ def Fit_Fun1(tspan,data,g,s):
         pred = np.transpose(r.y)
         pred[:,0] = np.add(pred[:,0],pred[:,4])
         pred = pred[:,:4]
+        pred[:,1:3] = pred[:,1:3]*factor
         pred = np.reshape(pred,-1)
         pred = np.asarray(pred, dtype = np.float64, order ='C')
         return pred
@@ -315,15 +323,16 @@ def Fit_Fun1(tspan,data,g,s):
 
     return k , var
 
-
-
 PP_kf,PP_k_var = Fit_Fun1(t[:-1],PP_data0,np.random.rand(k_n1)*0.00001,PP_sigma0)
 PP_sd = np.sqrt(np.diag(PP_k_var))
 PC_kf,PC_k_var = Fit_Fun1(t,PC_data0,np.random.rand(k_n1)*0.00001,PC_sigma0)
 PC_sd = np.sqrt(np.diag(PC_k_var))
-Cell_kf,Cell_k_var = Fit_Fun1(t,Cell_data0,np.random.rand(k_n1)*0.00001,Cell_sigma0)
+Cell_kf,Cell_k_var = Fit_Fun1(t,Cell_data0,np.random.rand(k_n1)*0.01,Cell_sigma0)
 Cell_sd = np.sqrt(np.diag(Cell_k_var))
 
+Cell_data0[:,1:3] = Cell_data0[:,1:3]/factor
+PP_data0[:,1:3] = PP_data0[:,1:3]/factor
+PC_data0[:,1:3] = PC_data0[:,1:3]/factor
 
 def Fit_Fun2(datain,dataout,g,ks,s):
     
@@ -408,8 +417,11 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
         pred[:,3] = np.add(np.add(pred[:,8],pred[:,9]),pred[:,10])
         pred = pred[:,:4]
         pred = np.reshape(pred,-1)
+        for c in range(len(pred)):
+            if pred[c] < 0 or pred[c] > 100:
+                pred[c] = pred[c]* 1e30
         if len(pred) < 28:
-            pred = np.ones(28)*0
+            pred = np.ones(28)*100
         return pred
 
     #solve the system - the solution is in variable c
@@ -422,14 +434,15 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
     for q in range(len(s)):
         if s[q] ==0 or not(np.isfinite(s[q])):
             s[q] = 1e-15
-    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = (-0.00000001,10))#get params
+    b = (np.ones(k_n3)*-0.1), (np.ones(k_n3)*1.5)
+    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = b)#get params
 
 
     return k ,var
 
 PP_PC_power_n = [PC_PP_power[2],PC_PP_power[1],PC_PP_power[4],PC_PP_power[3]]
 PP_Cell_power_n = PP_Cell_power[1:]
-PC_Cell_power_n = PC_Cell_power[1:]
+PC_Cell_power_n = np.ones(4)
 k_PP_PC = np.append(PP_kf,PC_kf)
 k_PP_PC = np.append(k_PP_PC,PP_PC_power_n)
 k_PP_Cell = np.append(PP_kf,Cell_kf)
@@ -438,12 +451,13 @@ k_PC_Cell = np.append(PC_kf,Cell_kf)
 k_PC_Cell = np.append(k_PC_Cell,PC_Cell_power_n)
 
 
-PP_PC_kf, PP_PC_var = Fit_Fun3(t,PP_PC_data0,k_PP_PC,np.zeros(k_n3),0.5,PP_PC_sigma0)
+PP_PC_kf, PP_PC_var = Fit_Fun3(t,PP_PC_data0,k_PP_PC,[0.020302272,0.000,0.050000799,0.010011988,-6.43507E-06,-6.90542E-07,-2.9865E-05,0.050010823,0.0],0.5,PP_PC_sigma0)
 PP_PC_sd = np.sqrt(np.diag(PP_PC_var))
-PC_Cell_kf, PC_Cell_var = Fit_Fun3(t,PC_Cell_data0,k_PC_Cell,np.zeros(k_n3),.8,PC_Cell_sigma0)
+PC_Cell_kf, PC_Cell_var = Fit_Fun3(t,PC_Cell_data0,k_PC_Cell,[0.003,0.003,0.03,0.1,0.002,0.01,0.001,0.07,0.02],.8,PC_Cell_sigma0)
 PC_Cell_sd = np.sqrt(np.diag(PC_Cell_var))
-PP_Cell_kf, PP_Cell_var = Fit_Fun3(t,PP_Cell_data0,k_PP_Cell,np.zeros(k_n3),.5,PP_Cell_sigma0)
+PP_Cell_kf, PP_Cell_var = Fit_Fun3(t,PP_Cell_data0,k_PP_Cell,[0.001,0.001,0.03,0,0,0,0.001,0.0,0.1],.5,PP_Cell_sigma0)
 PP_Cell_sd = np.sqrt(np.diag(PP_Cell_var))
+
 
 
 
@@ -846,13 +860,13 @@ def Plot_Fun3(tspan,ks,frac):
         r28 = k28*x_Aq_S12   # Aq12  -> G12
         r30 = k30*x_B_S12    # B12   -> S_new12
         r31 = k31*x_Aq_S12   # Aq12  -> S_new12
-
-        r24 = coupled(k24,1,1,x_S1,x_S2) # S1+S2 -> Aq12
-        r29 = coupled(k29,1,1,x_S1,x_S2) # S1+S2 -> G12
-        r23 = coupled(k23,a,b,x_S1,x_S2) # S1 + S2 -> B12
         
+        r24 = coupled(k24,1,1,x_S1,x_S2) # S1+S2 -> Aq12
+        r23 = coupled(k23,a,b,x_S1,x_S2) # S1 + S2 -> B12
+        r29 = coupled(k29,1,1,x_S1,x_S2)   # S1+S2 -> G12
 
-        sol = [-r1+r2-r3+r4-r9-(y*r23)-r24-r29, -r12+r13-r14+r15-r20-(z*r23)-r24-r29, r1+r5-r2-r6-r7-r10, r12-r13+r16-r17-r18-r21, (y+z)*r23+r25-r26-r27-r30, r3+r6-r4-r5-r8-r11, r14+r17-r15-r16-r19-r22, 2*r24-r25+r26-r28-r31, r7+r8+r9,r18+r19+r20,r27+r28+r29*2,r10+r11,r21+r22,r30+r31]
+
+        sol = [-r1+r2-r3+r4-r9-(y*r23)-r24-r29, -r12+r13-r14+r15-r20-(z*r23)-r24-r29, r1+r5-r2-r6-r7-r10, r12-r13+r16-r17-r18-r21, (y+z)*r23+r25-r26-r27-r30, r3+r6-r4-r5-r8-r11, r14+r17-r15-r16-r19-r22, r24*2-r25+r26-r28-r31, r7+r8+r9,r18+r19+r20,r27+r28+r29*2,r10+r11,r21+r22,r30+r31]
         # S1 , S2, B1, B2, B12, Aq1, Aq2, Aq12, G1, G2, G12, S_new1, S_new2, S_new12  
         return sol
     
@@ -956,6 +970,7 @@ def Fit_Fun4(data,ks):
         x_Aq_S12 = x[12]
         x_Aq_S13 = x[13]
         x_Aq_S23 = x[14]
+
 
 
         
@@ -1091,10 +1106,10 @@ def Fit_Fun4(data,ks):
         r40 = coupled(k40,1,1,x_S1,x_S2) # S1+S2 -> G12
         r43 = coupled(k43,c,d,x_S1,x_S3) # S1+S3 -> B13
         r44 = coupled(k44,1,1,x_S1,x_S3) # S1+S3 -> Aq13
-        r49 = coupled(k49,1,1,x_S1,x_S3) # S1+S3 -> G13
+        r49 = coupled(k49,1,1,x_S1,x_S3)   # S1+S3 -> G13
         r53 = coupled(k53,1,1,x_S2,x_S3) # S2+S3 -> Aq23
-        r58 = coupled(k58,1,1,x_S2,x_S3) # S2+S3 -> G23
         r52 = coupled(k52,e,f,x_S2,x_S3) # S2+S3 -> B23
+        r58 = coupled(k58,1,1,x_S2,x_S3)  # S2+S3 -> G23
         
 
         
@@ -1153,6 +1168,7 @@ for q in range(len(PP_PC_Cell_s)):
     if PP_PC_Cell_s[q] == 0:
         PP_PC_Cell_s[q] = 1e-15
 PP_PC_Cell_LL = np.sum(stats.norm.logpdf(act, cal, PP_PC_Cell_s))
+
 
 
 out = pd.ExcelWriter("Output.xlsx")
