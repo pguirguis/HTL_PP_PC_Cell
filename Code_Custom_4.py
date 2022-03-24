@@ -64,6 +64,21 @@ PC_PP_percent = df[2:9,0]
 PC_PP_B = df[2:9,1] 
 PC_PP_sigma = df[2:9,2] 
 
+t_short = t[:4]
+t_long = np.append(0,t[4:])
+
+PC_Cell_data0_short = PC_Cell_data0[:4,:]
+PC_Cell_data0_long = np.vstack(([100,0,0,0],PC_Cell_data0[4:,:]))
+
+PC_Cell_sigma0_short = PC_Cell_sigma0[:4,:]
+PC_Cell_sigma0_long = np.vstack(([0,0,0,0],PC_Cell_sigma0[4:,:]))
+
+
+PP_PC_Cell_data0_short = PP_PC_Cell_data0[:4,:]
+PP_PC_Cell_data0_long = np.vstack(([100,0,0,0],PP_PC_Cell_data0[4:,:]))
+
+PP_PC_Cell_sigma0_short = PP_PC_Cell_sigma0[:4,:]
+PP_PC_Cell_sigma0_long = np.vstack(([0,0,0,0],PP_PC_Cell_sigma0[4:,:]))
 
 def coupled(k,a,b,x_S1,x_S2):
     if not(math.isfinite(k)) or x_S1 < 0 or x_S2 < 0:
@@ -407,11 +422,11 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
         pred[:,3] = np.add(np.add(pred[:,8],pred[:,9]),pred[:,10])
         pred = pred[:,:4]
         pred = np.reshape(pred,-1)
-        if len(pred) < 28:
-            pred = np.ones(28)*0
+        if len(pred) < len(data):
+            pred = np.ones(len(data))*1e100*(28-len(pred))
         for m in range(len(pred)):
             if pred[m] < 0 or pred[m] > 100:
-                pred[m] = pred[m] *1e16
+                pred[m] = pred[m] *1e20
         return pred
 
     #solve the system - the solution is in variable c
@@ -424,8 +439,9 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
     for q in range(len(s)):
         if s[q] ==0 or not(np.isfinite(s[q])):
             s[q] = 1e-15
-
-    k, var = curve_fit(my_ls_func3,tspan, data,g,s, method =  'trf' )#get params
+            
+    b = (-.021,0,0,0,0,0,0,0,0),(0.5,.004,.1,.1,.1,.1,.1,0.1,0.1)
+    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = b)#get params
 
 
     return k ,var
@@ -440,13 +456,17 @@ k_PP_Cell = np.append(k_PP_Cell,PP_Cell_power_n)
 k_PC_Cell = np.append(PC_kf,Cell_kf)
 k_PC_Cell = np.append(k_PC_Cell,PC_Cell_power_n)
 
-
-PP_PC_kf, PP_PC_var = Fit_Fun3(t,PP_PC_data0,k_PP_PC,[0.020302272,0.0001,0.050000799,0.010011988,.43507E-02,6.90542E-02,0.9865E-02,0.050010823,0.0],0.5,PP_PC_sigma0)
+PP_PC_kf, PP_PC_var = Fit_Fun3(t,PP_PC_data0,k_PP_PC,np.zeros(k_n3),0.5,PP_PC_sigma0)
 PP_PC_sd = np.sqrt(np.diag(PP_PC_var))
-PC_Cell_kf, PC_Cell_var = Fit_Fun3(t,PC_Cell_data0,k_PC_Cell,[0.00,0.0002,0.0,0.0,0.0,0.001,0.00,0.00,0.00],.8,PC_Cell_sigma0)
-PC_Cell_sd = np.sqrt(np.diag(PC_Cell_var))
-PP_Cell_kf, PP_Cell_var = Fit_Fun3(t,PP_Cell_data0,k_PP_Cell,[0.001,0.001,0.0003,0,0,0,0.00,0.00,0.00],.5,PP_Cell_sigma0)
+
+PC_Cell_kf_short, PC_Cell_var_short = Fit_Fun3(t_short,PC_Cell_data0_short,k_PC_Cell,np.zeros(k_n3),.8,PC_Cell_sigma0_short)
+PC_Cell_sd_short = np.sqrt(np.diag(PC_Cell_var_short))
+PC_Cell_kf_long, PC_Cell_var_long = Fit_Fun3(t_long,PC_Cell_data0_long,k_PC_Cell,np.zeros(k_n3),.8,PC_Cell_sigma0_long)
+PC_Cell_sd_long = np.sqrt(np.diag(PC_Cell_var_long))
+
+PP_Cell_kf, PP_Cell_var = Fit_Fun3(t,PP_Cell_data0,k_PP_Cell,np.zeros(k_n3),.5,PP_Cell_sigma0)
 PP_Cell_sd = np.sqrt(np.diag(PP_Cell_var))
+
 
 
 def Plot_Fun1(tspan,k):
@@ -517,6 +537,7 @@ def Plot_Fun1(tspan,k):
     return fit , fit2
 
 
+tfit_short = np.linspace(0,10)
 tfit = np.linspace(0,60)
 
 PP_fitf, PP_fit2 = Plot_Fun1(tfit, PP_kf)
@@ -766,7 +787,7 @@ plot_data_fit2(PC_Cell_percent,PC_Cell_B,fit_per,PC_Cell_fit,PC_Cell_sigma,"PC_C
 def Plot_Fun3(tspan,ks,frac):
     ks = [item for subl in ks for item in subl]
     t0 = 0
-    tf = tspan[-1]
+    tf = 60
     
     
     def ode3(x, tspan, ks):  
@@ -892,15 +913,25 @@ def Plot_Fun3(tspan,ks,frac):
     return fit , fit2
 
 PP_PC_full = [PP_kf,PC_kf,PP_PC_power_n,PP_PC_kf]
-PC_Cell_full = [PC_kf,Cell_kf,PC_Cell_power_n,PC_Cell_kf]
+PC_Cell_full_short = [PC_kf,Cell_kf,PC_Cell_power_n,PC_Cell_kf_short]
+PC_Cell_full_long = [PC_kf,Cell_kf,PC_Cell_power_n,PC_Cell_kf_long]
 PP_Cell_full = [PP_kf,Cell_kf,PP_Cell_power_n,PP_Cell_kf]
 PP_PC_fit, PP_PC_fit2 = Plot_Fun3(tfit,PP_PC_full,.5)
-PC_Cell_fit, PC_Cell_fit2 = Plot_Fun3(tfit,PC_Cell_full,.8)
+
+PC_Cell_fit_short, PC_Cell_fit2_short = Plot_Fun3(tfit_short,PC_Cell_full_short,.8)
+PC_Cell_fit_long, PC_Cell_fit2_long = Plot_Fun3(tfit,PC_Cell_full_long,.8)
+
+PC_Cell_fit2_short = PC_Cell_fit2_short[:4,:]
+PC_Cell_fit2_long = np.vstack(([100,0,0,0],PC_Cell_fit2_long[4:,:]))
+
 PP_Cell_fit, PP_Cell_fit2 = Plot_Fun3(tfit,PP_Cell_full,.5)
 
 PP_PC_res = sum(sum(np.subtract(PP_PC_fit2,PP_PC_data0)**2))
 PP_Cell_res = sum(sum(np.subtract(PP_Cell_fit2,PP_Cell_data0)**2))
-PC_Cell_res = sum(sum(np.subtract(PC_Cell_fit2,PC_Cell_data0)**2))
+PC_Cell_res_short = sum(sum(np.subtract(PC_Cell_fit2_short,PC_Cell_data0_short)**2))
+PC_Cell_res_long = sum(sum(np.subtract(PC_Cell_fit2_long,PC_Cell_data0_long)**2))
+
+PC_Cell_res = PC_Cell_res_short + PC_Cell_res_long
 
 act = np.reshape(PP_PC_data0,-1).astype(float)
 cal = np.reshape(PP_PC_fit2,-1).astype(float)
@@ -922,263 +953,52 @@ for q in range(len(PP_Cell_s)):
         PP_Cell_s[q] = 1e-15
 PP_Cell_LL = np.sum(stats.norm.logpdf(act, cal, PP_Cell_s))
 
-act = np.reshape(PC_Cell_data0,-1).astype(float)
-cal = np.reshape(PC_Cell_fit2,-1).astype(float)
-PC_Cell_r2 = np.corrcoef(act,cal)[0,1]**2
+act = np.reshape(PC_Cell_data0_short,-1).astype(float)
+cal = np.reshape(PC_Cell_fit2_short,-1).astype(float)
 
-PC_Cell_s = np.reshape(PC_Cell_sigma0,-1).astype(float)
+
+PC_Cell_s = np.reshape(PC_Cell_sigma0_short,-1).astype(float)
 for q in range(len(PC_Cell_s)):
     if PC_Cell_s[q] == 0:
         PC_Cell_s[q] = 1e-15
-PC_Cell_LL = np.sum(stats.norm.logpdf(act, cal, PC_Cell_s))
+PC_Cell_LL_short = np.sum(stats.norm.logpdf(act, cal, PC_Cell_s))
+
+
+
+
+act = np.reshape(PC_Cell_data0_long,-1).astype(float)
+cal = np.reshape(PC_Cell_fit2_long,-1).astype(float)
+
+
+PC_Cell_s = np.reshape(PC_Cell_sigma0_long,-1).astype(float)
+for q in range(len(PC_Cell_s)):
+    if PC_Cell_s[q] == 0:
+        PC_Cell_s[q] = 1e-15
+PC_Cell_LL_long = np.sum(stats.norm.logpdf(act, cal, PC_Cell_s))
+
+PC_Cell_LL = PC_Cell_LL_short + PC_Cell_LL_long
+
 
 plot_data_fit3(t,PP_PC_data0,tfit,PP_PC_fit,PP_PC_sigma0,"PP PC")
-plot_data_fit3(t,PC_Cell_data0,tfit,PC_Cell_fit,PC_Cell_sigma0,"PC Cell")
+plot_data_fit3(t_short,PC_Cell_data0_short,tfit_short,PC_Cell_fit_short,PC_Cell_sigma0_short,"PC Cell_short")
+plot_data_fit3(t_long,PC_Cell_data0_long,tfit,PC_Cell_fit_long,PC_Cell_sigma0_long,"PC Cell_long")
 plot_data_fit3(t,PP_Cell_data0,tfit,PP_Cell_fit,PP_Cell_sigma0,"PP Cell")
 
 
-def Fit_Fun4(t,data,ks,g,s):
-    t0 = t[0]
-    tf = t[-1]
-    t = np.asarray(t, dtype = np.float64, order ='C')
-    data = np.asarray(data, dtype = np.float64, order ='C')
-    s = np.asarray(s, dtype = np.float64, order ='C')
-        
-    
-    def ode4(x,t,k):
-        x_S1 = x[0]
-        x_S2 = x[1]
-        x_S3 = x[2]
-        x_B_S1 = x[3]
-        x_B_S2 = x[4]
-        x_B_S3 = x[5]
-        x_B_S12 = x[6]
-        x_B_S13 = x[7]
-        x_B_S23 = x[8]
-        x_B_S123 = x[9]
-        x_Aq_S1 = x[10]
-        x_Aq_S2 = x[11]
-        x_Aq_S3 = x[12]
-        x_Aq_S12 = x[13]
-        x_Aq_S13 = x[14]
-        x_Aq_S23 = x[15]
-        x_Aq_S123 = x[16]
 
+k_PP_PC_Cell_short = [PP_kf,PC_kf,Cell_kf,PP_PC_power_n,PP_PC_kf,PP_Cell_power_n,PP_Cell_kf,PC_Cell_power_n,PC_Cell_kf_short]
+sd_PP_PC_Cell_short = [PP_sd,PC_sd,Cell_sd,PP_PC_power_sd,PP_PC_sd,PP_Cell_power_sd,PP_Cell_sd,PC_Cell_power_sd,PC_Cell_sd_short]
+k_PP_PC_Cell_short = [item for subl in k_PP_PC_Cell_short for item in subl]
+sd_PP_PC_Cell_short = [item for subl in sd_PP_PC_Cell_short for item in subl]
 
-        
-        k1 = ks[0]
-        k2 = ks[1]
-        k3 = ks[2]
-        k4 = ks[3]
-        k5 = ks[4]
-        k6 = ks[5]
-        k7 = ks[6]
-        k8 = ks[7]
-        k9 = ks[8]
-        k10 = ks[9]
-        k11 = ks[10]
-        k12 = ks[11]
-        k13 = ks[12]
-        k14 = ks[13]
-        k15 = ks[14]
-        k16 = ks[15]
-        k17 = ks[16]
-        k18 = ks[17]
-        k19 = ks[18]
-        k20 = ks[19]
-        k21 = ks[20]
-        k22 = ks[21]
-        k23 = ks[22]
-        k24 = ks[23]
-        k25 = ks[24]
-        k26 = ks[25]
-        k27 = ks[26]
-        k28 = ks[27]
-        k29 = ks[28]
-        k30 = ks[29]
-        k31 = ks[30]
-        k32 = ks[31]
-        k33 = ks[32]
-        a = ks[33]
-        b = ks[34]
-        y = ks[35]
-        z = ks[36]
-        k34 = ks[37]
-        k35 = ks[38]
-        k36 = ks[39]
-        k37 = ks[40]
-        k38 = ks[41]
-        k39 = ks[42]
-        k40 = ks[43]
-        k41 = ks[44]
-        k42 = ks[45]
-        c = ks[46]
-        d = ks[47]
-        w = ks[48]
-        v = ks[49]
-        k43 = ks[50]
-        k44 = ks[51]
-        k45 = ks[52]
-        k46 = ks[53]
-        k47 = ks[54]
-        k48 = ks[55]
-        k49 = ks[56]
-        k50 = ks[57]
-        k51 = ks[58]
-        e = ks[59]
-        f = ks[60]
-        u = ks[61]
-        q = ks[62]
-        k52 = ks[63]
-        k53 = ks[64]
-        k54 = ks[65]
-        k55 = ks[66]
-        k56 = ks[67]
-        k57 = ks[68]
-        k58 = ks[69]
-        k59 = ks[70]
-        k60 = ks[71]
-        k61 = k[0]
-        k62 = k[1]
-        k63 = k[2]
-        k64 = k[3]
-        k65 = k[4]
-        k66 = k[5]
-        k67 = k[6]
-        k68 = k[7]
-        k69 = k[8]
-        
-        
-        
-        r1  = k1*x_S1        # S1    -> B1
-        r2  = k2*x_B_S1      # B1    -> S1
-        r3  = k3*x_S1        # S1    -> Aq1
-        r4  = k4*x_Aq_S1     # Aq1   -> S1
-        r5  = k5*x_Aq_S1     # Aq1   -> B1
-        r6  = k6*x_B_S1      # B1    -> Aq1
-        r7  = k7*x_B_S1      # B1    -> G1
-        r8  = k8*x_Aq_S1     # Aq1   -> G1
-        r9  = k9*x_S1        # S1    -> G1
-        r10 = k10*x_B_S1     # B1    -> S_new1
-        r11 = k11*x_Aq_S1    # Aq1   -> S_new1
-        r12 = k12*x_S2       # S2    -> B2
-        r13 = k13*x_B_S2     # B2    -> S2
-        r14 = k14*x_S2       # S2    -> Aq2
-        r15 = k15*x_Aq_S2    # Aq2   -> S2
-        r16 = k16*x_Aq_S2    # Aq2   -> B2
-        r17 = k17*x_B_S2     # B2    -> Aq2
-        r18 = k18*x_B_S2     # B2    -> G2
-        r19 = k19*x_Aq_S2    # Aq2   -> G2
-        r20 = k20*x_S2       # S2    -> G2
-        r21 = k21*x_B_S2     # B2    -> S_new2
-        r22 = k22*x_Aq_S2    # Aq2   -> S_new2
-        r23 = k23*x_S3       # S3    -> B3
-        r24 = k24*x_B_S3     # B3    -> S3
-        r25 = k25*x_S3       # S3    -> Aq3
-        r26 = k26*x_Aq_S3    # Aq3   -> S3
-        r27 = k27*x_Aq_S3    # Aq2   -> B3
-        r28 = k28*x_B_S3     # B3    -> Aq3
-        r29 = k29*x_B_S3     # B3    -> G3
-        r30 = k30*x_Aq_S3    # Aq3   -> G3
-        r31 = k31*x_S3       # S3    -> G3
-        r32 = k32*x_B_S3     # B3    -> S_new3
-        r33 = k33*x_Aq_S3    # Aq3   -> S_new3
-        r36 = k36*x_Aq_S12   # Aq12  -> B12
-        r37 = k37*x_B_S12    # B12   -> Aq12
-        r38 = k38*x_B_S12    # B12   -> G12
-        r39 = k39*x_Aq_S12   # Aq12  -> G12
-        r41 = k41*x_B_S12    # B12   -> S_new12
-        r42 = k42*x_Aq_S12   # Aq12  -> S_new12
-        r45 = k45*x_Aq_S13   # Aq13  -> B13
-        r46 = k46*x_B_S13    # B13   -> Aq13
-        r47 = k47*x_B_S13    # B13   -> G13
-        r48 = k48*x_Aq_S13   # Aq13  -> G13
-        r50 = k50*x_B_S13    # B13   -> S_new13
-        r51 = k51*x_Aq_S13   # Aq13  -> S_new13
-        r54 = k54*x_Aq_S23   # Aq23  -> B23
-        r55 = k55*x_B_S23    # B23   -> Aq23
-        r56 = k56*x_B_S23    # B23   -> G23
-        r57 = k57*x_Aq_S23   # Aq23  -> G23
-        r59 = k59*x_B_S23    # B23   -> S_new23
-        r60 = k60*x_Aq_S23   # Aq23  -> S_new23
-        r63 = k63*x_Aq_S123  # Aq123 -> B123
-        r64 = k64*x_B_S123   # B123  -> Aq123
-        r65 = k65*x_B_S123   # B123  -> G123
-        r66 = k66*x_Aq_S123  # Aq123 -> G123
-        r68 = k68*x_B_S123   # B123  -> S_new123
-        r69 = k69*x_Aq_S123  # Aq123 -> S_new123
-        
-        
-        r34 = coupled(k34,a,b,x_S1,x_S2) # S1+S2 -> B12
-        r35 = coupled(k35,1,1,x_S1,x_S2) # S1+S2 -> Aq12
-        r40 = coupled(k40,1,1,x_S1,x_S2) # S1+S2 -> G12
-        r43 = coupled(k43,c,d,x_S1,x_S3) # S1+S3 -> B13
-        r44 = coupled(k44,1,1,x_S1,x_S3) # S1+S3 -> Aq13
-        r49 = coupled(k49,1,1,x_S1,x_S3) # S1+S3 -> G13
-        r53 = coupled(k53,1,1,x_S2,x_S3) # S2+S3 -> Aq23
-        r58 = coupled(k58,1,1,x_S2,x_S3) # S2+S3 -> G23
-        r52 = coupled(k52,e,f,x_S2,x_S3) # S2+S3 -> B23
-        
-        r61 = triple(k61,x_S1,x_S2,x_S3) # S1+S2+S3 -> B123
-        r62 = triple(k62,x_S1,x_S2,x_S3) # S1+S2+S3 -> Aq123
-        r67 = triple(k67,x_S1,x_S2,x_S3) # S1+S2+S3 -> G123
-        
-
-        
-        sol = [-r1-r3-r9-(y*r34)-r35-r40-(w*r43)-r44-r49+r2+r4-r61-r62-r67, -r12-r14-r20-(z*r34)-r35-r40-(u*r52)-r53-r58+r13+r15-r61-r62-r67, -r23-r25-r31-(v*r43)-r44-r49-(q*r52)-r53-r58+r24+r26-r61-r62-r67 , r1+r5-r2-r6-r7-r10, r12+r16-r13-r17-r18-r21, r23+r27-r24-r28-r29-r32, (y+z)*r34+r36-r37-r38-r41, (w+v)*r43+r45-r46-r47-r50, (u+q)*r52+r54-r55-r56-r59,3*r61+r63-r64-r65-r68, r3+r6-r4-r5-r8-r11, r14+r17-r15-r17-r19-r22, r25+r28-r26-r27-r30-r33, r35*2+r37-r36-r39-r42, r44*2+r46-r45-r48-r51, r53*2+r55-r54-r57-r60, 3*r62-r63+r64-r66-r69, r7+r8+r9, r18+r19+r20, r29+r30+r31, r38+r39+r40*2, r47+r48+r49*2, r56+r57+r58*2, r65+r66+3*r67, r10+r11, r21+r22, r32+r33, r41+r42, r50+r51, r59+r60,r68+r69]
-        # S1 , S2,, S3, B1, B2, B3, B12, B13, B23, B123, Aq1, Aq2, Aq3, Aq12, Aq13, Aq23, Aq123, G1, G2, G3, G12, G13, G23, G123, S_new1, S_new2, S_new3, S_new12, S_new13, S_new23, S_new123
-        return sol
-    
-    
-    
-    def my_ls_func4(tspan,*teta):
-        """definition of function for LS fit
-            x gives evaluation points,
-            teta is an array of parameters to be varied for fit"""
-        # create an alias to f which passes the optional params  
-        f4 = lambda t,y: ode4(y,t,teta)
-        # calculate ode solution, retuen values for each entry of "x"
-    
-        r = solve_ivp(f4,(t0,tf),data0, t_eval=tspan,method ='Radau')
-        #in this case, we only need one of the dependent variable values
-        fit = np.transpose(r.y)
-        fit[:,0] = np.add(np.add(np.add(np.add(np.add(np.add(np.add(np.add(np.add(fit[:,0],fit[:,1]),fit[:,2]),fit[:,24]),fit[:,25]),fit[:,26]),fit[:,27]),fit[:,28]),fit[:,29]),fit[:,30])
-        fit[:,1] = np.add(np.add(np.add(np.add(np.add(np.add(fit[:,3],fit[:,4]),fit[:,5]),fit[:,6]),fit[:,7]),fit[:,8]),fit[:,9])
-        fit[:,2] = np.add(np.add(np.add(np.add(np.add(np.add(fit[:,10],fit[:,11]),fit[:,12]),fit[:,13]),fit[:,14]),fit[:,15]),fit[:,16])
-        fit[:,3] = np.add(np.add(np.add(np.add(np.add(np.add(fit[:,17],fit[:,18]),fit[:,19]),fit[:,20]),fit[:,21]),fit[:,22]),fit[:,23])
-        fit = fit[:,:4]
-        fit = np.reshape(fit,-1)
-        if len(fit) < 28:
-            fit = np.zeros(28)
-        return fit
-    
-    data0 = [100/3, 100/3, 100/3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] #inital conditions for ODEs
-    data = np.reshape(data,-1)
-    s = np.reshape(s,-1)
-    q = len(s)
-    for i in range(q):
-        if s[i] == 0:
-            s[i] = 1e-15
-    
-    
-    k, var = curve_fit(my_ls_func4, t, data, g,s, bounds = (-1,1))#get params
-    return k,var
-
-
-k_PP_PC_Cell = [PP_kf,PC_kf,Cell_kf,PP_PC_power_n,PP_PC_kf,PP_Cell_power_n,PP_Cell_kf,PC_Cell_power_n,PC_Cell_kf]
-sd_PP_PC_Cell = [PP_sd,PC_sd,Cell_sd,PP_PC_power_sd,PP_PC_sd,PP_Cell_power_sd,PP_Cell_sd,PC_Cell_power_sd,PC_Cell_sd]
-k_PP_PC_Cell = [item for subl in k_PP_PC_Cell for item in subl]
-sd_PP_PC_Cell = [item for subl in sd_PP_PC_Cell for item in subl]
-
-PP_PC_Cell_k , PP_PC_Cell_var= Fit_Fun4(t,PP_PC_Cell_data0,k_PP_PC_Cell,np.ones(k_n3)*0,PP_PC_Cell_sigma0)
-
-PP_PC_Cell_sd = np.sqrt(np.diag(PP_PC_Cell_var))
-
-
+k_PP_PC_Cell_long = [PP_kf,PC_kf,Cell_kf,PP_PC_power_n,PP_PC_kf,PP_Cell_power_n,PP_Cell_kf,PC_Cell_power_n,PC_Cell_kf_long]
+sd_PP_PC_Cell_long = [PP_sd,PC_sd,Cell_sd,PP_PC_power_sd,PP_PC_sd,PP_Cell_power_sd,PP_Cell_sd,PC_Cell_power_sd,PC_Cell_sd_long]
+k_PP_PC_Cell_long = [item for subl in k_PP_PC_Cell_long for item in subl]
+sd_PP_PC_Cell_long = [item for subl in sd_PP_PC_Cell_long for item in subl]
 
 
 def Plot_Fun4(t,data,ks):
-    t0 = t[0]
+    t0 = 0
     tf = t[-1]
     t = np.asarray(t, dtype = np.float64, order ='C')
     data = np.asarray(data, dtype = np.float64, order ='C')
@@ -1277,15 +1097,15 @@ def Plot_Fun4(t,data,ks):
         k58 = ks[69]
         k59 = ks[70]
         k60 = ks[71]
-        k61 = ks[72]
-        k62 = ks[73]
-        k63 = ks[74]
-        k64 = ks[75]
-        k65 = ks[76]
-        k66 = ks[77]
-        k67 = ks[78]
-        k68 = ks[79]
-        k69 = ks[80]
+        k61 = 0
+        k62 = 0
+        k63 = 0
+        k64 = 0
+        k65 = 0
+        k66 = 0
+        k67 = 0
+        k68 = 0
+        k69 = 0
         
         
         
@@ -1400,31 +1220,40 @@ def Plot_Fun4(t,data,ks):
     return [t,data,tfit,fit,fit2]
 
 
-k_PP_PC_Cell = [PP_kf,PC_kf,Cell_kf,PP_PC_power_n,PP_PC_kf,PP_Cell_power_n,PP_Cell_kf,PC_Cell_power_n,PC_Cell_kf,PP_PC_Cell_k]
-sd_PP_PC_Cell = [PP_sd,PC_sd,Cell_sd,PP_PC_power_sd,PP_PC_sd,PP_Cell_power_sd,PP_Cell_sd,PC_Cell_power_sd,PC_Cell_sd, PP_PC_Cell_sd]
-k_PP_PC_Cell = [item for subl in k_PP_PC_Cell for item in subl]
-sd_PP_PC_Cell = [item for subl in sd_PP_PC_Cell for item in subl]
+[PP_PC_Cell_t_short,PP_PC_Cell_data_short,PP_PC_Cell_tfit_short,PP_PC_Cell_fit_short,PP_PC_Cell_fit2_short] = Plot_Fun4(t_short,PP_PC_Cell_data0_short,k_PP_PC_Cell_short)
 
-[PP_PC_Cell_t,PP_PC_Cell_data,PP_PC_Cell_tfit,PP_PC_Cell_fit,PP_PC_Cell_fit2] = Plot_Fun4(t,PP_PC_Cell_data0,k_PP_PC_Cell)
+[PP_PC_Cell_t_long,PP_PC_Cell_data_long,PP_PC_Cell_tfit,PP_PC_Cell_fit_long,PP_PC_Cell_fit2_long] = Plot_Fun4(t_long,PP_PC_Cell_data0_long,k_PP_PC_Cell_long)
 
-plot_data_fit3(PP_PC_Cell_t,PP_PC_Cell_data,PP_PC_Cell_tfit,PP_PC_Cell_fit,PP_PC_Cell_sigma0,"PP_PC_Cell")
+plot_data_fit3(PP_PC_Cell_t_short,PP_PC_Cell_data_short,PP_PC_Cell_tfit_short,PP_PC_Cell_fit_short,PP_PC_Cell_sigma0_short,"PP_PC_Cell_short")
+plot_data_fit3(PP_PC_Cell_t_long,PP_PC_Cell_data_long,PP_PC_Cell_tfit,PP_PC_Cell_fit_long,PP_PC_Cell_sigma0_long,"PP_PC_Cell_long")
 
-PP_PC_Cell_res = sum(sum(np.subtract(PP_PC_Cell_fit2,PP_PC_Cell_data0)**2))
 
-act = np.reshape(PP_PC_Cell_data0,-1).astype(float)
-cal = np.reshape(PP_PC_Cell_fit2,-1).astype(float)
-PP_PC_Cell_r2 = np.corrcoef(act,cal)[0,1]**2
+act = np.reshape(PP_PC_Cell_data0_long,-1).astype(float)
+cal = np.reshape(PP_PC_Cell_fit2_long,-1).astype(float)
 
-PP_PC_Cell_s = np.reshape(PP_PC_Cell_sigma0,-1).astype(float)
+PP_PC_Cell_s = np.reshape(PP_PC_Cell_sigma0_short,-1).astype(float)
 for q in range(len(PP_PC_Cell_s)):
     if PP_PC_Cell_s[q] == 0:
         PP_PC_Cell_s[q] = 1e-15
-PP_PC_Cell_LL = np.sum(stats.norm.logpdf(act, cal, PP_PC_Cell_s))
+PP_PC_Cell_LL_short = np.sum(stats.norm.logpdf(act, cal, PP_PC_Cell_s))
+
+act = np.reshape(PP_PC_Cell_data0_long,-1).astype(float)
+cal = np.reshape(PP_PC_Cell_fit2_long,-1).astype(float)
+
+PP_PC_Cell_s = np.reshape(PP_PC_Cell_sigma0_long,-1).astype(float)
+for q in range(len(PP_PC_Cell_s)):
+    if PP_PC_Cell_s[q] == 0:
+        PP_PC_Cell_s[q] = 1e-15
+PP_PC_Cell_LL_long = np.sum(stats.norm.logpdf(act, cal, PP_PC_Cell_s))
+
+PP_PC_Cell_LL = PP_PC_Cell_LL_short + PP_PC_Cell_LL_long
 
 out = pd.ExcelWriter("Output.xlsx")
 Sheet = "Full"
-k_PP_PC_Cell = pd.DataFrame(data=k_PP_PC_Cell)
-sd_PP_PC_Cell = pd.DataFrame(data=sd_PP_PC_Cell)
+k_PP_PC_Cell_short = pd.DataFrame(data=k_PP_PC_Cell_short)
+sd_PP_PC_Cell_short = pd.DataFrame(data=sd_PP_PC_Cell_short)
+k_PP_PC_Cell_long = pd.DataFrame(data=k_PP_PC_Cell_long)
+sd_PP_PC_Cell_long = pd.DataFrame(data=sd_PP_PC_Cell_long)
 PP_tf = pd.DataFrame(data=t)
 PP_data = pd.DataFrame(data=PP_data0)
 PP_sigma0 = pd.DataFrame(data=PP_sigma0)
@@ -1434,19 +1263,21 @@ PP_res = pd.DataFrame(data=[PP_res])
 PP_r2 = pd.DataFrame(data=[PP_r2])
 PP_LL = pd.DataFrame(data=[PP_LL])
 PP_fit2 = pd.DataFrame(data=PP_fit2)
-k_PP_PC_Cell.to_excel(out,sheet_name=Sheet,startcol=0,startrow =1,index=False,header=False)
-sd_PP_PC_Cell.to_excel(out,sheet_name=Sheet,startcol=1,startrow =1,index=False,header=False)
-PP_tf.to_excel(out,sheet_name=Sheet,startcol=2,startrow =1,index=False,header=False)
-PP_data.to_excel(out,sheet_name=Sheet,startcol=3,startrow =1,index=False,header=False)
-PP_res.to_excel(out,sheet_name=Sheet,startcol=3,startrow =16,index=False,header=False)
-PP_r2.to_excel(out,sheet_name=Sheet,startcol=3,startrow =17,index=False,header=False)
-PP_LL.to_excel(out,sheet_name=Sheet,startcol=3,startrow =18,index=False,header=False)
-PP_tf.to_excel(out,sheet_name=Sheet,startcol=2,startrow =8,index=False,header=False)
-PP_sigma0.to_excel(out,sheet_name=Sheet,startcol=3,startrow =8,index=False,header=False)
-PP_tf.to_excel(out,sheet_name=Sheet,startcol=2,startrow =25,index=False,header=False)
-PP_fit2.to_excel(out,sheet_name=Sheet,startcol=3,startrow =25,index=False,header=False)
-PP_tfitf.to_excel(out,sheet_name=Sheet,startcol=7,startrow =1,index=False,header=False)
-PP_fitf.to_excel(out,sheet_name=Sheet,startcol=8,startrow =1,index=False,header=False)
+k_PP_PC_Cell_short.to_excel(out,sheet_name=Sheet,startcol=0,startrow =1,index=False,header=False)
+sd_PP_PC_Cell_short.to_excel(out,sheet_name=Sheet,startcol=1,startrow =1,index=False,header=False)
+k_PP_PC_Cell_long.to_excel(out,sheet_name=Sheet,startcol=2,startrow =1,index=False,header=False)
+sd_PP_PC_Cell_long.to_excel(out,sheet_name=Sheet,startcol=3,startrow =1,index=False,header=False)
+PP_tf.to_excel(out,sheet_name=Sheet,startcol=4,startrow =1,index=False,header=False)
+PP_data.to_excel(out,sheet_name=Sheet,startcol=5,startrow =1,index=False,header=False)
+PP_res.to_excel(out,sheet_name=Sheet,startcol=5,startrow =16,index=False,header=False)
+PP_r2.to_excel(out,sheet_name=Sheet,startcol=5,startrow =17,index=False,header=False)
+PP_LL.to_excel(out,sheet_name=Sheet,startcol=5,startrow =18,index=False,header=False)
+PP_tf.to_excel(out,sheet_name=Sheet,startcol=4,startrow =8,index=False,header=False)
+PP_sigma0.to_excel(out,sheet_name=Sheet,startcol=5,startrow =8,index=False,header=False)
+PP_tf.to_excel(out,sheet_name=Sheet,startcol=4,startrow =25,index=False,header=False)
+PP_fit2.to_excel(out,sheet_name=Sheet,startcol=4,startrow =25,index=False,header=False)
+PP_tfitf.to_excel(out,sheet_name=Sheet,startcol=9,startrow =1,index=False,header=False)
+PP_fitf.to_excel(out,sheet_name=Sheet,startcol=10,startrow =1,index=False,header=False)
 
 
 i =1
@@ -1459,17 +1290,17 @@ PC_res = pd.DataFrame(data=[PC_res])
 PC_r2 = pd.DataFrame(data=[PC_r2])
 PC_fit2 = pd.DataFrame(data=PC_fit2)
 PC_LL = pd.DataFrame(data=[PC_LL])
-PC_LL.to_excel(out,sheet_name=Sheet,startcol=3+(13*i),startrow =18,index=False,header=False)
-PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(13*i),startrow =1,index=False,header=False)
-PC_data.to_excel(out,sheet_name=Sheet,startcol=1+(13*i),startrow =1,index=False,header=False)
-PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(13*i),startrow =8,index=False,header=False)
-PC_res.to_excel(out,sheet_name=Sheet,startcol=3+(13*i),startrow =16,index=False,header=False)
-PC_r2.to_excel(out,sheet_name=Sheet,startcol=3+(13*i),startrow =17,index=False,header=False)
-PC_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(13*i),startrow =8,index=False,header=False)
-PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(13*i),startrow =25,index=False,header=False)
-PC_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(13*i),startrow =25,index=False,header=False)
-PC_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(13*i),startrow =1,index=False,header=False)
-PC_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(13*i),startrow =1,index=False,header=False)
+PC_LL.to_excel(out,sheet_name=Sheet,startcol=3+(15*i),startrow =18,index=False,header=False)
+PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(15*i),startrow =1,index=False,header=False)
+PC_data.to_excel(out,sheet_name=Sheet,startcol=1+(15*i),startrow =1,index=False,header=False)
+PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(15*i),startrow =8,index=False,header=False)
+PC_res.to_excel(out,sheet_name=Sheet,startcol=3+(15*i),startrow =16,index=False,header=False)
+PC_r2.to_excel(out,sheet_name=Sheet,startcol=3+(15*i),startrow =17,index=False,header=False)
+PC_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(15*i),startrow =8,index=False,header=False)
+PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(15*i),startrow =25,index=False,header=False)
+PC_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(15*i),startrow =25,index=False,header=False)
+PC_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(15*i),startrow =1,index=False,header=False)
+PC_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(15*i),startrow =1,index=False,header=False)
 
 i =2
 Cell_tf = pd.DataFrame(data=t)
@@ -1481,17 +1312,17 @@ Cell_res = pd.DataFrame(data=[Cell_res])
 Cell_r2 = pd.DataFrame(data=[Cell_r2])
 Cell_fit2 = pd.DataFrame(data=Cell_fit2)
 Cell_LL = pd.DataFrame(data=[Cell_LL])
-Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =18,index=False,header=False)
-Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =1,index=False,header=False)
-Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =1,index=False,header=False)
-Cell_res.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =16,index=False,header=False)
-Cell_r2.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =17,index=False,header=False)
-Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =8,index=False,header=False)
-Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =8,index=False,header=False)
-Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =25,index=False,header=False)
-Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =25,index=False,header=False)
-Cell_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(12*i),startrow =1,index=False,header=False)
-Cell_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(12*i),startrow =1,index=False,header=False)
+Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =18,index=False,header=False)
+Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =1,index=False,header=False)
+Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =1,index=False,header=False)
+Cell_res.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =16,index=False,header=False)
+Cell_r2.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =17,index=False,header=False)
+Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =8,index=False,header=False)
+Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =8,index=False,header=False)
+Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =25,index=False,header=False)
+Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =25,index=False,header=False)
+Cell_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(14*i),startrow =1,index=False,header=False)
+Cell_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(14*i),startrow =1,index=False,header=False)
 
 
 i =3
@@ -1504,17 +1335,17 @@ PP_PC_res = pd.DataFrame(data=[PP_PC_res])
 PP_PC_r2 = pd.DataFrame(data=[PP_PC_r2])
 PP_PC_fit2 = pd.DataFrame(data=PP_PC_fit2)
 PP_PC_LL = pd.DataFrame(data=[PP_PC_LL])
-PP_PC_LL.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =18,index=False,header=False)
-PP_PC_res.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =16,index=False,header=False)
-PP_PC_r2.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =17,index=False,header=False)
-PP_PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =1,index=False,header=False)
-PP_PC_data.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =1,index=False,header=False)
-PP_PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =8,index=False,header=False)
-PP_PC_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =8,index=False,header=False)
-PP_PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =25,index=False,header=False)
-PP_PC_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =25,index=False,header=False)
-PP_PC_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(12*i),startrow =1,index=False,header=False)
-PP_PC_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(12*i),startrow =1,index=False,header=False)
+PP_PC_LL.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =18,index=False,header=False)
+PP_PC_res.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =16,index=False,header=False)
+PP_PC_r2.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =17,index=False,header=False)
+PP_PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =1,index=False,header=False)
+PP_PC_data.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =1,index=False,header=False)
+PP_PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =8,index=False,header=False)
+PP_PC_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =8,index=False,header=False)
+PP_PC_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =25,index=False,header=False)
+PP_PC_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =25,index=False,header=False)
+PP_PC_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(14*i),startrow =1,index=False,header=False)
+PP_PC_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(14*i),startrow =1,index=False,header=False)
 
 
 i =4
@@ -1527,63 +1358,96 @@ PP_Cell_res = pd.DataFrame(data=[PP_Cell_res])
 PP_Cell_r2 = pd.DataFrame(data=[PP_Cell_r2])
 PP_Cell_fit2 = pd.DataFrame(data=PP_Cell_fit2)
 PP_Cell_LL = pd.DataFrame(data=[PP_Cell_LL])
-PP_Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =18,index=False,header=False)
-PP_Cell_res.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =16,index=False,header=False)
-PP_Cell_r2.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =17,index=False,header=False)
-PP_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =1,index=False,header=False)
-PP_Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =1,index=False,header=False)
-PP_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =8,index=False,header=False)
-PP_Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =8,index=False,header=False)
-PP_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =25,index=False,header=False)
-PP_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =25,index=False,header=False)
-PP_Cell_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(12*i),startrow =1,index=False,header=False)
-PP_Cell_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(12*i),startrow =1,index=False,header=False)
+PP_Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =18,index=False,header=False)
+PP_Cell_res.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =16,index=False,header=False)
+PP_Cell_r2.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =17,index=False,header=False)
+PP_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =1,index=False,header=False)
+PP_Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =1,index=False,header=False)
+PP_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =8,index=False,header=False)
+PP_Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =8,index=False,header=False)
+PP_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =25,index=False,header=False)
+PP_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =25,index=False,header=False)
+PP_Cell_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(14*i),startrow =1,index=False,header=False)
+PP_Cell_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(14*i),startrow =1,index=False,header=False)
 
 
 i =5
-PC_Cell_tf = pd.DataFrame(data=t)
-PC_Cell_data = pd.DataFrame(data=PC_Cell_data0)
-PC_Cell_sigma0 = pd.DataFrame(data=PC_Cell_sigma0)
-PC_Cell_tfitf = pd.DataFrame(data=tfit)
-PC_Cell_fitf = pd.DataFrame(data=PC_Cell_fit)
+PC_Cell_tf = pd.DataFrame(data=t_short)
+PC_Cell_data = pd.DataFrame(data=PC_Cell_data0_short)
+PC_Cell_sigma0 = pd.DataFrame(data=PC_Cell_sigma0_short)
+PC_Cell_tfitf = pd.DataFrame(data=tfit_short)
+PC_Cell_fitf = pd.DataFrame(data=PC_Cell_fit_short)
 PC_Cell_res = pd.DataFrame(data=[PC_Cell_res])
-PC_Cell_r2 = pd.DataFrame(data=[PC_Cell_r2])
-PC_Cell_fit2 = pd.DataFrame(data=PC_Cell_fit2)
+PC_Cell_fit2 = pd.DataFrame(data=PC_Cell_fit2_short)
 PC_Cell_LL = pd.DataFrame(data=[PC_Cell_LL])
-PC_Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =18,index=False,header=False)
-PC_Cell_res.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =16,index=False,header=False)
-PC_Cell_r2.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =17,index=False,header=False)
-PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =1,index=False,header=False)
-PC_Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =1,index=False,header=False)
-PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =8,index=False,header=False)
-PC_Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =8,index=False,header=False)
-PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =25,index=False,header=False)
-PC_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =25,index=False,header=False)
-PC_Cell_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(12*i),startrow =1,index=False,header=False)
-PC_Cell_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(12*i),startrow =1,index=False,header=False)
+PC_Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =18,index=False,header=False)
+PC_Cell_res.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =16,index=False,header=False)
+PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =1,index=False,header=False)
+PC_Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =1,index=False,header=False)
+PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =8,index=False,header=False)
+PC_Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =8,index=False,header=False)
+PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =25,index=False,header=False)
+PC_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =25,index=False,header=False)
+PC_Cell_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(14*i),startrow =1,index=False,header=False)
+PC_Cell_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(14*i),startrow =1,index=False,header=False)
 
 
 i =6
-PP_PC_Cell_data = pd.DataFrame(data=PP_PC_Cell_data)
-PP_PC_Cell_sigma0 = pd.DataFrame(data=PP_PC_Cell_sigma0)
-PP_PC_Cell_tfit = pd.DataFrame(data=PP_PC_Cell_tfit)
-PP_PC_Cell_t = pd.DataFrame(data=PP_PC_Cell_t)
-PP_PC_Cell_fit = pd.DataFrame(data=PP_PC_Cell_fit)
-PP_PC_Cell_res = pd.DataFrame(data=[PP_PC_Cell_res])
-PP_PC_Cell_r2 = pd.DataFrame(data=[PP_PC_Cell_r2])
-PP_PC_Cell_fit2 = pd.DataFrame(data=PP_PC_Cell_fit2)
+PC_Cell_tf = pd.DataFrame(data=t_long)
+PC_Cell_data = pd.DataFrame(data=PC_Cell_data0_long)
+PC_Cell_sigma0 = pd.DataFrame(data=PC_Cell_sigma0_long)
+PC_Cell_tfitf = pd.DataFrame(data=tfit)
+PC_Cell_fitf = pd.DataFrame(data=PC_Cell_fit_long)
+PC_Cell_fit2 = pd.DataFrame(data=PC_Cell_fit2_long)
+PC_Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =18,index=False,header=False)
+PC_Cell_res.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =16,index=False,header=False)
+PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =1,index=False,header=False)
+PC_Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =1,index=False,header=False)
+PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =8,index=False,header=False)
+PC_Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =8,index=False,header=False)
+PC_Cell_tf.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =25,index=False,header=False)
+PC_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =25,index=False,header=False)
+PC_Cell_tfitf.to_excel(out,sheet_name=Sheet,startcol=5+(14*i),startrow =1,index=False,header=False)
+PC_Cell_fitf.to_excel(out,sheet_name=Sheet,startcol=6+(14*i),startrow =1,index=False,header=False)
+
+
+
+i =7
+PP_PC_Cell_data = pd.DataFrame(data=PP_PC_Cell_data_short)
+PP_PC_Cell_sigma0 = pd.DataFrame(data=PP_PC_Cell_sigma0_short)
+PP_PC_Cell_tfit_short = pd.DataFrame(data=PP_PC_Cell_tfit_short)
+PP_PC_Cell_t = pd.DataFrame(data=PP_PC_Cell_t_short)
+PP_PC_Cell_fit_short = pd.DataFrame(data=PP_PC_Cell_fit_short)
+PP_PC_Cell_fit2_short = pd.DataFrame(data=PP_PC_Cell_fit2_short)
 PP_PC_Cell_LL = pd.DataFrame(data=[PP_PC_Cell_LL])
-PP_PC_Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =18,index=False,header=False)
-PP_PC_Cell_res.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =16,index=False,header=False)
-PP_PC_Cell_r2.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =17,index=False,header=False)
-PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =1,index=False,header=False)
-PP_PC_Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =1,index=False,header=False)
-PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =8,index=False,header=False)
-PP_PC_Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =8,index=False,header=False)
-PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =25,index=False,header=False)
-PP_PC_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =25,index=False,header=False)
-PP_PC_Cell_tfit.to_excel(out,sheet_name=Sheet,startcol=5+(12*i),startrow =1,index=False,header=False)
-PP_PC_Cell_fit.to_excel(out,sheet_name=Sheet,startcol=6+(12*i),startrow =1,index=False,header=False)
+PP_PC_Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =18,index=False,header=False)
+PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =1,index=False,header=False)
+PP_PC_Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =1,index=False,header=False)
+PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =8,index=False,header=False)
+PP_PC_Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =8,index=False,header=False)
+PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =25,index=False,header=False)
+PP_PC_Cell_fit2_short.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =25,index=False,header=False)
+PP_PC_Cell_tfit_short.to_excel(out,sheet_name=Sheet,startcol=5+(14*i),startrow =1,index=False,header=False)
+PP_PC_Cell_fit_short.to_excel(out,sheet_name=Sheet,startcol=6+(14*i),startrow =1,index=False,header=False)
+
+
+
+i =8
+PP_PC_Cell_data = pd.DataFrame(data=PP_PC_Cell_data_long)
+PP_PC_Cell_sigma0 = pd.DataFrame(data=PP_PC_Cell_sigma0_long)
+PP_PC_Cell_tfit = pd.DataFrame(data=PP_PC_Cell_tfit)
+PP_PC_Cell_t = pd.DataFrame(data=PP_PC_Cell_t_long)
+PP_PC_Cell_fit_long = pd.DataFrame(data=PP_PC_Cell_fit_long)
+PP_PC_Cell_fit2_long = pd.DataFrame(data=PP_PC_Cell_fit2_long)
+PP_PC_Cell_LL.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =18,index=False,header=False)
+PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =1,index=False,header=False)
+PP_PC_Cell_data.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =1,index=False,header=False)
+PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =8,index=False,header=False)
+PP_PC_Cell_sigma0.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =8,index=False,header=False)
+PP_PC_Cell_t.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =25,index=False,header=False)
+PP_PC_Cell_fit2_long.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =25,index=False,header=False)
+PP_PC_Cell_tfit.to_excel(out,sheet_name=Sheet,startcol=5+(14*i),startrow =1,index=False,header=False)
+PP_PC_Cell_fit_long.to_excel(out,sheet_name=Sheet,startcol=6+(14*i),startrow =1,index=False,header=False)
 
 
 k_PC_PP = [PC_kf,PP_kf,PC_PP_power]
@@ -1593,7 +1457,7 @@ PC_PP_fit , PC_PP_fit2 = Plot_Fun2(k_PC_PP,PC_PP_percent)
 PC_Cell_fit , PC_Cell_fit2 = Plot_Fun2(k_PC_Cell,PC_Cell_percent)
 PP_Cell_fit , PP_Cell_fit2 = Plot_Fun2(k_PP_Cell,PC_Cell_percent)
 
-i = 7
+i = 9
 PC_PP_percent = pd.DataFrame(data=PC_PP_percent)
 PC_PP_B = pd.DataFrame(data=PC_PP_B)
 PC_PP_per = pd.DataFrame(data=fit_per)
@@ -1602,15 +1466,15 @@ PC_PP_pow_res = pd.DataFrame(data=[PC_PP_pow_res])
 PC_PP_pow_r2 = pd.DataFrame(data=[PC_PP_pow_r2])
 PC_PP_fit2 = pd.DataFrame(data=PC_PP_fit2)
 PC_PP_power_LL = pd.DataFrame(data=[PC_PP_power_LL])
-PC_PP_power_LL.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =18,index=False,header=False)
-PC_PP_pow_res.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =16,index=False,header=False)
-PC_PP_pow_r2.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =17,index=False,header=False)
-PC_PP_percent.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =1,index=False,header=False)
-PC_PP_B.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =25,index=False,header=False)
-PC_PP_percent.to_excel(out,sheet_name=Sheet,startcol=0+(12*i),startrow =25,index=False,header=False)
-PC_PP_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(12*i),startrow =1,index=False,header=False)
-PC_PP_per.to_excel(out,sheet_name=Sheet,startcol=2+(12*i),startrow =1,index=False,header=False)
-PC_PP_fit.to_excel(out,sheet_name=Sheet,startcol=3+(12*i),startrow =1,index=False,header=False)
+PC_PP_power_LL.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =18,index=False,header=False)
+PC_PP_pow_res.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =16,index=False,header=False)
+PC_PP_pow_r2.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =17,index=False,header=False)
+PC_PP_percent.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =1,index=False,header=False)
+PC_PP_B.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =25,index=False,header=False)
+PC_PP_percent.to_excel(out,sheet_name=Sheet,startcol=0+(14*i),startrow =25,index=False,header=False)
+PC_PP_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(14*i),startrow =1,index=False,header=False)
+PC_PP_per.to_excel(out,sheet_name=Sheet,startcol=2+(14*i),startrow =1,index=False,header=False)
+PC_PP_fit.to_excel(out,sheet_name=Sheet,startcol=3+(14*i),startrow =1,index=False,header=False)
 
 
 PC_Cell_percent = pd.DataFrame(data=PC_Cell_percent)
@@ -1621,15 +1485,15 @@ PC_Cell_pow_res = pd.DataFrame(data=[PC_Cell_pow_res])
 PC_Cell_pow_r2 = pd.DataFrame(data=[PC_Cell_pow_r2])
 PC_Cell_fit2 = pd.DataFrame(data=PC_Cell_fit2)
 PC_Cell_power_LL = pd.DataFrame(data=[PC_Cell_power_LL])
-PC_Cell_power_LL.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 5,startrow =18,index=False,header=False)
-PC_Cell_pow_res.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 5,startrow =16,index=False,header=False)
-PC_Cell_pow_r2.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 5,startrow =17,index=False,header=False)
-PC_Cell_percent.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 5 ,startrow =1,index=False,header=False)
-PC_Cell_B.to_excel(out,sheet_name=Sheet,startcol=1+(12*i) + 5 ,startrow =1,index=False,header=False)
-PC_Cell_percent.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 5 ,startrow =25,index=False,header=False)
-PC_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(12*i) + 5 ,startrow =25,index=False,header=False)
-PC_Cell_per.to_excel(out,sheet_name=Sheet,startcol=2+(12*i) + 5 ,startrow =1,index=False,header=False)
-PC_Cell_fit.to_excel(out,sheet_name=Sheet,startcol=3+(12*i) + 5 ,startrow =1,index=False,header=False)
+PC_Cell_power_LL.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 5,startrow =18,index=False,header=False)
+PC_Cell_pow_res.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 5,startrow =16,index=False,header=False)
+PC_Cell_pow_r2.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 5,startrow =17,index=False,header=False)
+PC_Cell_percent.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 5 ,startrow =1,index=False,header=False)
+PC_Cell_B.to_excel(out,sheet_name=Sheet,startcol=1+(14*i) + 5 ,startrow =1,index=False,header=False)
+PC_Cell_percent.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 5 ,startrow =25,index=False,header=False)
+PC_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(14*i) + 5 ,startrow =25,index=False,header=False)
+PC_Cell_per.to_excel(out,sheet_name=Sheet,startcol=2+(14*i) + 5 ,startrow =1,index=False,header=False)
+PC_Cell_fit.to_excel(out,sheet_name=Sheet,startcol=3+(14*i) + 5 ,startrow =1,index=False,header=False)
 
 
 PP_Cell_percent = pd.DataFrame(data=PP_Cell_percent)
@@ -1640,14 +1504,14 @@ PP_Cell_pow_res = pd.DataFrame(data=[PP_Cell_pow_res])
 PP_Cell_pow_r2 = pd.DataFrame(data=[PP_Cell_pow_r2])
 PP_Cell_fit2 = pd.DataFrame(data=PP_Cell_fit2)
 PP_Cell_power_LL = pd.DataFrame(data=[PP_Cell_power_LL])
-PP_Cell_power_LL.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 10,startrow =18,index=False,header=False)
-PP_Cell_pow_res.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 10  ,startrow =16,index=False,header=False)
-PP_Cell_pow_r2.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 10  ,startrow =17,index=False,header=False)
-PP_Cell_percent.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 10 ,startrow =1,index=False,header=False)
-PP_Cell_B.to_excel(out,sheet_name=Sheet,startcol=1+(12*i) + 10 ,startrow =1,index=False,header=False)
-PP_Cell_percent.to_excel(out,sheet_name=Sheet,startcol=0+(12*i) + 10 ,startrow =25,index=False,header=False)
-PP_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(12*i) + 10 ,startrow =25,index=False,header=False)
-PP_Cell_per.to_excel(out,sheet_name=Sheet,startcol=2+(12*i) + 10 ,startrow =1,index=False,header=False)
-PP_Cell_fit.to_excel(out,sheet_name=Sheet,startcol=3+(12*i) + 10 ,startrow =1,index=False,header=False)
+PP_Cell_power_LL.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 10,startrow =18,index=False,header=False)
+PP_Cell_pow_res.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 10  ,startrow =16,index=False,header=False)
+PP_Cell_pow_r2.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 10  ,startrow =17,index=False,header=False)
+PP_Cell_percent.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 10 ,startrow =1,index=False,header=False)
+PP_Cell_B.to_excel(out,sheet_name=Sheet,startcol=1+(14*i) + 10 ,startrow =1,index=False,header=False)
+PP_Cell_percent.to_excel(out,sheet_name=Sheet,startcol=0+(14*i) + 10 ,startrow =25,index=False,header=False)
+PP_Cell_fit2.to_excel(out,sheet_name=Sheet,startcol=1+(14*i) + 10 ,startrow =25,index=False,header=False)
+PP_Cell_per.to_excel(out,sheet_name=Sheet,startcol=2+(14*i) + 10 ,startrow =1,index=False,header=False)
+PP_Cell_fit.to_excel(out,sheet_name=Sheet,startcol=3+(14*i) + 10 ,startrow =1,index=False,header=False)
 
 out.save()

@@ -410,6 +410,9 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
         pred = np.reshape(pred,-1)
         if len(pred) < 28:
             pred = np.ones(28)*0
+        for m in range(len(pred)):
+            if pred[m] < 0 or pred[m] > 100:
+                pred[m] = pred[m] *1e15
         return pred
 
     #solve the system - the solution is in variable c
@@ -422,14 +425,15 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
     for q in range(len(s)):
         if s[q] ==0 or not(np.isfinite(s[q])):
             s[q] = 1e-15
-    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = (0,1))#get params
+    b = (-0.1,0,0,0,0,0,0,0,0),(0.5,0.001,.1,.1,.1,.1,.1,.1,.1)
+    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = b)#get params
 
 
     return k ,var
 
 PP_PC_power_n = [PC_PP_power[2],PC_PP_power[1],PC_PP_power[4],PC_PP_power[3]]
 PP_Cell_power_n = PP_Cell_power[1:]
-PC_Cell_power_n = PC_Cell_power[1:]
+PC_Cell_power_n = np.ones(4)
 k_PP_PC = np.append(PP_kf,PC_kf)
 k_PP_PC = np.append(k_PP_PC,PP_PC_power_n)
 k_PP_Cell = np.append(PP_kf,Cell_kf)
@@ -438,13 +442,12 @@ k_PC_Cell = np.append(PC_kf,Cell_kf)
 k_PC_Cell = np.append(k_PC_Cell,PC_Cell_power_n)
 
 
-PP_PC_kf, PP_PC_var = Fit_Fun3(t,PP_PC_data0,k_PP_PC,np.zeros(k_n3),0.5,PP_PC_sigma0)
+PP_PC_kf, PP_PC_var = Fit_Fun3(t,PP_PC_data0,k_PP_PC,[0.005302272,0.000,0.0050000799,0.0010011988,0,0,0,0,0.0],0.5,PP_PC_sigma0)
 PP_PC_sd = np.sqrt(np.diag(PP_PC_var))
-PC_Cell_kf, PC_Cell_var = Fit_Fun3(t,PC_Cell_data0,k_PC_Cell,np.zeros(k_n3),.8,PC_Cell_sigma0)
+PC_Cell_kf, PC_Cell_var = Fit_Fun3(t,PC_Cell_data0,k_PC_Cell,[0.00008,0.0001,0.003,0.04,0.0002,0.001,0.01,0.,0.0],.8,PC_Cell_sigma0)
 PC_Cell_sd = np.sqrt(np.diag(PC_Cell_var))
-PP_Cell_kf, PP_Cell_var = Fit_Fun3(t,PP_Cell_data0,k_PP_Cell,np.zeros(k_n3),.5,PP_Cell_sigma0)
+PP_Cell_kf, PP_Cell_var = Fit_Fun3(t,PP_Cell_data0,k_PP_Cell,[0.001,0.001,0.03,0,0,0,0.001,0.0,0],.5,PP_Cell_sigma0)
 PP_Cell_sd = np.sqrt(np.diag(PP_Cell_var))
-
 
 
 def Plot_Fun1(tspan,k):

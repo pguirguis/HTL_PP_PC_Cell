@@ -403,6 +403,9 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
         pred = np.reshape(pred,-1)
         if len(pred) < 28:
             pred = np.ones(28)*0
+        for m in range(len(pred)):
+            if pred[m] < 0 or pred[m] > 100:
+                pred[m] = pred[m] *1e20
         return pred
 
     #solve the system - the solution is in variable c
@@ -415,14 +418,16 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
     for q in range(len(s)):
         if s[q] ==0 or not(np.isfinite(s[q])):
             s[q] = 1e-15
-    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = (0,1))#get params
+            
+    b = (-.021,0,0,0,0,0,0,0,0),(0.5,.004,0.1,.1,.1,.1,.1,.1,.1)
+    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = b)#get params
 
 
     return k ,var
 
 PP_PC_power_n = [PC_PP_power[2],PC_PP_power[1],PC_PP_power[4],PC_PP_power[3]]
 PP_Cell_power_n = PP_Cell_power[1:]
-PC_Cell_power_n = PC_Cell_power[1:]
+PC_Cell_power_n = np.ones(4)
 k_PP_PC = np.append(PP_kf,PC_kf)
 k_PP_PC = np.append(k_PP_PC,PP_PC_power_n)
 k_PP_Cell = np.append(PP_kf,Cell_kf)

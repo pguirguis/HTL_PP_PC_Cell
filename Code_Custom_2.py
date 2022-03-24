@@ -331,7 +331,7 @@ def Fit_Fun1(tspan,data,g,s):
     for q in range(len(s)):
         if s[q] ==0 or not(np.isfinite(s[q])):
             s[q] = 1e-15
-    b = (np.zeros(k_n1)),(np.ones(k_n1))
+    b = (np.zeros(k_n1)),(np.ones(k_n1)*2)
     
     k, var = curve_fit(my_ls_func1,tspan, data,g,s, bounds = b)#get params
     
@@ -340,30 +340,30 @@ def Fit_Fun1(tspan,data,g,s):
     res_min = np.sum(np.sum(np.subtract(cal,data)**2))
 
 
-    u = k_n1-1
-    while u > 0 :
-        if k[u] > 1e-300:
+    u = 0
+    while u < k_n1-1 :
+        if abs(k[u]) > 1e-300:
             g[u] = 0
             b[1][u] = 1e-300
             try :
                 k, var = curve_fit(my_ls_func1,tspan, data,g,s, bounds = b)#get params
                 cal = my_ls_func1(tspan,k)
                 res = np.sum(np.sum(np.subtract(cal,data)**2))
-                if res < res_min*1.1 and res > res_min:
-                    u = k_n1 -1
+                if res < res_min*1.05 and res > res_min:
+                    u = 0
                 elif res < res_min:
                     res_min = res
-                    u = k_n1-1
+                    u = 0
                 else:
                     g[u] = np.random.rand(1)
-                    b[1][u] = 1
-                    u = u -1
+                    b[1][u] = 2
+                    u = u + 1
             except:
                 g[u] = np.random.rand(1)
-                b[1][u] = 1
-                u = u -1
+                b[1][u] = 2
+                u = u + 1
         else:
-            u = u - 1
+            u = u + 1
             
     k, var = curve_fit(my_ls_func1,tspan, data,g,s, bounds = b)#get params
 
@@ -462,8 +462,11 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
         pred[:,3] = np.add(np.add(pred[:,8],pred[:,9]),pred[:,10])
         pred = pred[:,:4]
         pred = np.reshape(pred,-1)
+        for c in range(len(pred)):
+            if pred[c] < 0 or pred[c] > 100:
+                pred[c] = pred[c]*1e15
         if len(pred) < 28:
-            pred = np.ones(28)*0
+            pred = np.ones(28)*1e10*(28-len(pred))
         return pred
 
     #solve the system - the solution is in variable c
@@ -476,47 +479,53 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
     for q in range(len(s)):
         if s[q] ==0 or not(np.isfinite(s[q])):
             s[q] = 1e-15
-    b = np.append(-1,np.ones(k_n3-1)*-0.00000001),(np.ones(k_n3))
     
+    b = np.append(-.021,np.zeros(k_n3-1)),np.append([0.01,0.02],np.ones(k_n3-2)*0.1)
     k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = b)#get params
 
     cal = my_ls_func3(tspan,k)
     
     res_min = np.sum(np.sum(np.subtract(cal,data)**2))
 
-    u = k_n3-1
-    while u > 0 :
-        if k[u] > 1e-300:
-            g[u] = 0
+    u = 0
+    while u < k_n3 -1 :
+        if abs(k[u]) > 1e-300:
             b[1][u] = 1e-300
             b[0][u] = 0
             try :
                 k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = b)#get params
                 cal = my_ls_func3(tspan,k)
                 res = np.sum(np.sum(np.subtract(cal,data)**2))
-                if res < res_min*1.1 and res > res_min:
-                    u = k_n3-1
+                if res < res_min*1.05 and res > res_min:
+                    u = 0
                 elif res < res_min:
                     res_min = res
-                    u = k_n3-1
+                    u = 0
                 else:
-                    g[u] = np.random.rand(1)
-                    b[1][u] = 1
-                    if u == 0:
-                        b[0][u] = -1
+                        
+                    if u  == 0:
+                        b[0][u] = -.021
+                        b[1][u] = 0.01
+                    elif u == 1:
+                        b[0][u] = 0
+                        b[1][u] = 0.002
                     else:
-                        b[0][u] = -0.00000001
-                    u = u -1
+                        b[1][u] = .1
+                        b[0][u] = 0
+                    u = u +1
             except:
-                g[u] = np.random.rand(1)
-                b[1][u] = 1
-                if u == 0:
-                    b[0][u] = -1
+                if u  == 0:
+                    b[0][u] = -.021
+                    b[1][u] = 0.01
+                elif u == 1:
+                    b[0][u] = 0
+                    b[1][u] = 0.002
                 else:
-                    b[0][u] = -0.00000001
-                u = u -1
+                    b[1][u] = .1
+                    b[0][u] = 0
+                u = u +1
         else:
-            u = u - 1
+            u = u + 1
     
     k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = b)#get params
 
@@ -524,7 +533,7 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
 
 PP_PC_power_n = [PC_PP_power[2],PC_PP_power[1],PC_PP_power[4],PC_PP_power[3]]
 PP_Cell_power_n = PP_Cell_power[1:]
-PC_Cell_power_n = PC_Cell_power[1:]
+PC_Cell_power_n = np.ones(4)
 k_PP_PC = np.append(PP_kf,PC_kf)
 k_PP_PC = np.append(k_PP_PC,PP_PC_power_n)
 k_PP_Cell = np.append(PP_kf,Cell_kf)
@@ -576,7 +585,7 @@ def Plot_Fun1(tspan,k):
         r8  = k8*x_Aq # Aq-> G
         r9  = k9*x_S  # S -> G
         r10 = k10*x_B # B -> S_new
-        r11 = k11*x_Aq# Aq-> S_new  
+        r11 = k11*x_Aq# Aq-> S_new
         
         sol = [-r1-r3-r9+r2+r4, r1+r5-r2-r6-r7-r10, r3+r6-r4-r5-r8-r11, r7+r8+r9, r10+r11]
         # [S, B, Aq, G, S_new]

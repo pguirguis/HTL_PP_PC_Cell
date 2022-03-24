@@ -76,6 +76,15 @@ def coupled(k,a,b,x_S1,x_S2):
               r = 100
     return r
 
+def triple(k,x_S1,x_S2,x_S3):
+    if not(math.isfinite(k)) or x_S1 < 0 or x_S2 < 0 or x_S3 < 0:
+        r =0
+    else:
+        r = k*x_S2*x_S3*x_S1
+        if not(math.isfinite(r)) :
+              r = 1
+    return r
+
 def ode1(x, tspan, k):    
     
     x_S = x[0]
@@ -320,11 +329,11 @@ Cell_sd = np.sqrt(np.diag(Cell_k_var))
 
 
 
-PP_Cell_power = np.zeros(k_n2)
+PP_Cell_power = np.append(0,np.ones(k_n2-1))
 PP_Cell_power_sd  = np.zeros(k_n2)
-PC_Cell_power = np.zeros(k_n2)
+PC_Cell_power = np.append(0,np.ones(k_n2-1))
 PC_Cell_power_sd = np.zeros(k_n2)
-PC_PP_power = np.zeros(k_n2)
+PC_PP_power = np.append(0,np.ones(k_n2-1))
 PC_PP_power_sd = np.zeros(k_n2)
 PP_Cell_power_sd = PP_Cell_power_sd[1:]
 PC_Cell_power_sd = PC_Cell_power_sd[1:]
@@ -371,7 +380,8 @@ def Fit_Fun3(tspan,data,ks,g,frac,s):
     for q in range(len(s)):
         if s[q] ==0 or not(np.isfinite(s[q])):
             s[q] = 1e-15
-    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = (0,1))#get params
+    b = (0,0,0,0,0,0,0,0,0),(0.0005,0.001,.1,.1,.1,.1,.1,.1,.1)
+    k, var = curve_fit(my_ls_func3,tspan, data,g,s, bounds = b)#get params
 
 
     return k ,var
@@ -387,11 +397,11 @@ k_PC_Cell = np.append(PC_kf,Cell_kf)
 k_PC_Cell = np.append(k_PC_Cell,PC_Cell_power_n)
 
 
-PP_PC_kf, PP_PC_var = Fit_Fun3(t,PP_PC_data0,k_PP_PC,np.zeros(k_n3),0.5,PP_PC_sigma0)
+PP_PC_kf, PP_PC_var = Fit_Fun3(t,PP_PC_data0,k_PP_PC,[0.00004,0.00002,0.05,0.0,0,0,0.0007,0.04,0.04],0.5,PP_PC_sigma0)
 PP_PC_sd = np.sqrt(np.diag(PP_PC_var))
-PC_Cell_kf, PC_Cell_var = Fit_Fun3(t,PC_Cell_data0,k_PC_Cell,np.zeros(k_n3),.8,PC_Cell_sigma0)
+PC_Cell_kf, PC_Cell_var = Fit_Fun3(t,PC_Cell_data0,k_PC_Cell,[0.00007,0.00003,0,0.08,0,0,0.002,0.006,0.001],.8,PC_Cell_sigma0)
 PC_Cell_sd = np.sqrt(np.diag(PC_Cell_var))
-PP_Cell_kf, PP_Cell_var = Fit_Fun3(t,PP_Cell_data0,k_PP_Cell,np.zeros(k_n3),.5,PP_Cell_sigma0)
+PP_Cell_kf, PP_Cell_var = Fit_Fun3(t,PP_Cell_data0,k_PP_Cell,[0.00002,0.0002,0,0,0,0,0.0003,0,0.003],.5,PP_Cell_sigma0)
 PP_Cell_sd = np.sqrt(np.diag(PP_Cell_var))
 
 
@@ -877,12 +887,14 @@ plot_data_fit3(t,PC_Cell_data0,tfit,PC_Cell_fit,PC_Cell_sigma0,"PC Cell")
 plot_data_fit3(t,PP_Cell_data0,tfit,PP_Cell_fit,PP_Cell_sigma0,"PP Cell")
 
 
-def Fit_Fun4(data,ks):
+def Plot_Fun4(t,data,ks):
     t0 = t[0]
     tf = t[-1]
+    t = np.asarray(t, dtype = np.float64, order ='C')
+    data = np.asarray(data, dtype = np.float64, order ='C')
         
     
-    def ode4(x, tspanc):    
+    def ode4(x,t):
         x_S1 = x[0]
         x_S2 = x[1]
         x_S3 = x[2]
@@ -892,12 +904,14 @@ def Fit_Fun4(data,ks):
         x_B_S12 = x[6]
         x_B_S13 = x[7]
         x_B_S23 = x[8]
-        x_Aq_S1 = x[9]
-        x_Aq_S2 = x[10]
-        x_Aq_S3 = x[11]
-        x_Aq_S12 = x[12]
-        x_Aq_S13 = x[13]
-        x_Aq_S23 = x[14]
+        x_B_S123 = x[9]
+        x_Aq_S1 = x[10]
+        x_Aq_S2 = x[11]
+        x_Aq_S3 = x[12]
+        x_Aq_S12 = x[13]
+        x_Aq_S13 = x[14]
+        x_Aq_S23 = x[15]
+        x_Aq_S123 = x[16]
 
 
         
@@ -960,19 +974,29 @@ def Fit_Fun4(data,ks):
         k49 = ks[56]
         k50 = ks[57]
         k51 = ks[58]
-        e = ks[58]
-        f = ks[59]
-        u = ks[60]
-        q = ks[61]
-        k52 = ks[62]
-        k53 = ks[63]
-        k54 = ks[64]
-        k55 = ks[65]
-        k56 = ks[66]
-        k57 = ks[67]
-        k58 = ks[68]
-        k59 = ks[69]
-        k60 = ks[70]
+        e = ks[59]
+        f = ks[60]
+        u = ks[61]
+        q = ks[62]
+        k52 = ks[63]
+        k53 = ks[64]
+        k54 = ks[65]
+        k55 = ks[66]
+        k56 = ks[67]
+        k57 = ks[68]
+        k58 = ks[69]
+        k59 = ks[70]
+        k60 = ks[71]
+        k61 = 0
+        k62 = 0
+        k63 = 0
+        k64 = 0
+        k65 = 0
+        k66 = 0
+        k67 = 0
+        k68 = 0
+        k69 = 0
+        
         
         
         r1  = k1*x_S1        # S1    -> B1
@@ -1026,6 +1050,12 @@ def Fit_Fun4(data,ks):
         r57 = k57*x_Aq_S23   # Aq23  -> G23
         r59 = k59*x_B_S23    # B23   -> S_new23
         r60 = k60*x_Aq_S23   # Aq23  -> S_new23
+        r63 = k63*x_Aq_S123  # Aq123 -> B123
+        r64 = k64*x_B_S123   # B123  -> Aq123
+        r65 = k65*x_B_S123   # B123  -> G123
+        r66 = k66*x_Aq_S123  # Aq123 -> G123
+        r68 = k68*x_B_S123   # B123  -> S_new123
+        r69 = k69*x_Aq_S123  # Aq123 -> S_new123
         
         
         r34 = coupled(k34,a,b,x_S1,x_S2) # S1+S2 -> B12
@@ -1038,37 +1068,42 @@ def Fit_Fun4(data,ks):
         r58 = coupled(k58,1,1,x_S2,x_S3) # S2+S3 -> G23
         r52 = coupled(k52,e,f,x_S2,x_S3) # S2+S3 -> B23
         
+        r61 = triple(k61,x_S1,x_S2,x_S3) # S1+S2+S3 -> B123
+        r62 = triple(k62,x_S1,x_S2,x_S3) # S1+S2+S3 -> Aq123
+        r67 = triple(k67,x_S1,x_S2,x_S3) # S1+S2+S3 -> G123
+        
 
         
-        sol = [-r1-r3-r9-(y*r34)-r35-r40-(w*r43)-r44-r49+r2+r4, -r12-r14-r20-(z*r34)-r35-r40-(u*r52)-r53-r58+r13+r15, -r23-r25-r31-(v*r43)-r44-r49-(q*r52)-r53-r58+r24+r26 , r1+r5-r2-r6-r7-r10, r12+r16-r13-r17-r18-r21, r23+r27-r24-r28-r29-r32, (y+z)*r34+r36-r37-r38-r41, (w+v)*r43+r45-r46-r47-r50, (u+q)*r52+r54-r55-r56-r59, r3+r6-r4-r5-r8-r11, r14+r17-r15-r17-r19-r22, r25+r28-r26-r27-r30-r33, r35*2+r37-r36-r39-r42, r44*2+r46-r45-r48-r51, r53*2+r55-r54-r57-r60, r7+r8+r9, r18+r19+r20, r29+r30+r31, r38+r39+r40*2, r47+r48+r49*2, r56+r57+r58*2, r10+r11, r21+r22, r32+r33, r41+r42, r50+r51, r59+r60]
-        # S1 , S2,, S3, B1, B2, B3, B12, B13, B23, Aq1, Aq2, Aq3, Aq12, Aq13, Aq23, G1, G2, G3, G12, G13, G23, S_new1, S_new2, S_new3, S_new12, S_new13, S_new23  
+        sol = [-r1-r3-r9-(y*r34)-r35-r40-(w*r43)-r44-r49+r2+r4-r61-r62-r67, -r12-r14-r20-(z*r34)-r35-r40-(u*r52)-r53-r58+r13+r15-r61-r62-r67, -r23-r25-r31-(v*r43)-r44-r49-(q*r52)-r53-r58+r24+r26-r61-r62-r67 , r1+r5-r2-r6-r7-r10, r12+r16-r13-r17-r18-r21, r23+r27-r24-r28-r29-r32, (y+z)*r34+r36-r37-r38-r41, (w+v)*r43+r45-r46-r47-r50, (u+q)*r52+r54-r55-r56-r59,3*r61+r63-r64-r65-r68, r3+r6-r4-r5-r8-r11, r14+r17-r15-r17-r19-r22, r25+r28-r26-r27-r30-r33, r35*2+r37-r36-r39-r42, r44*2+r46-r45-r48-r51, r53*2+r55-r54-r57-r60, 3*r62-r63+r64-r66-r69, r7+r8+r9, r18+r19+r20, r29+r30+r31, r38+r39+r40*2, r47+r48+r49*2, r56+r57+r58*2, r65+r66+3*r67, r10+r11, r21+r22, r32+r33, r41+r42, r50+r51, r59+r60,r68+r69]
+        # S1 , S2,, S3, B1, B2, B3, B12, B13, B23, B123, Aq1, Aq2, Aq3, Aq12, Aq13, Aq23, Aq123, G1, G2, G3, G12, G13, G23, G123, S_new1, S_new2, S_new3, S_new12, S_new13, S_new23, S_new123
         return sol
     
     
     
-    def my_ls_func4(tspan,ks):
+    def my_ls_func4(tspan):
         """definition of function for LS fit
             x gives evaluation points,
             teta is an array of parameters to be varied for fit"""
-        # create an alias to f which passes the optional params    
-        f2 = lambda t,y: ode4(y, t)
+        # create an alias to f which passes the optional params  
+        f4 = lambda t,y: ode4(y,t)
         # calculate ode solution, retuen values for each entry of "x"
     
-        r = solve_ivp(f2,(t0,tf),data0, t_eval=tspan,method ='Radau')
+        r = solve_ivp(f4,(t0,tf),data0, t_eval=tspan,method ='Radau')
         #in this case, we only need one of the dependent variable values
         fit = np.transpose(r.y)
-        fit[:,0] = np.add(np.add(np.add(np.add(np.add(np.add(np.add(np.add(fit[:,0],fit[:,1]),fit[:,2]),fit[:,21]),fit[:,22]),fit[:,23]),fit[:,24]),fit[:,25]),fit[:,26])
-        fit[:,1] = np.add(np.add(np.add(np.add(np.add(fit[:,3],fit[:,4]),fit[:,5]),fit[:,6]),fit[:,7]),fit[:,8])
-        fit[:,2] = np.add(np.add(np.add(np.add(np.add(fit[:,9],fit[:,10]),fit[:,11]),fit[:,12]),fit[:,13]),fit[:,14])
-        fit[:,3] = np.add(np.add(np.add(np.add(np.add(fit[:,15],fit[:,16]),fit[:,17]),fit[:,18]),fit[:,19]),fit[:,20])
+        fit[:,0] = np.add(np.add(np.add(np.add(np.add(np.add(np.add(np.add(np.add(fit[:,0],fit[:,1]),fit[:,2]),fit[:,24]),fit[:,25]),fit[:,26]),fit[:,27]),fit[:,28]),fit[:,29]),fit[:,30])
+        fit[:,1] = np.add(np.add(np.add(np.add(np.add(np.add(fit[:,3],fit[:,4]),fit[:,5]),fit[:,6]),fit[:,7]),fit[:,8]),fit[:,9])
+        fit[:,2] = np.add(np.add(np.add(np.add(np.add(np.add(fit[:,10],fit[:,11]),fit[:,12]),fit[:,13]),fit[:,14]),fit[:,15]),fit[:,16])
+        fit[:,3] = np.add(np.add(np.add(np.add(np.add(np.add(fit[:,17],fit[:,18]),fit[:,19]),fit[:,20]),fit[:,21]),fit[:,22]),fit[:,23])
         fit = fit[:,:4]
         return fit
-
-    data0 = [100/3, 100/3, 100/3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] #inital conditions for ODEs
     
+    data0 = [100/3, 100/3, 100/3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] #inital conditions for ODEs
     tfit = np.linspace(0,t[-1])
-    fit = my_ls_func4(tfit,ks)
-    fit2 = my_ls_func4(t,ks)
+    fit = my_ls_func4(tfit)
+    data = np.array(data)
+    fit = np.array(fit)
+    fit2 = my_ls_func4(t)
     
     data = np.array(data)
     fit = np.array(fit)
@@ -1080,7 +1115,7 @@ sd_PP_PC_Cell = [PP_sd,PC_sd,Cell_sd,PP_PC_power_sd,PP_PC_sd,PP_Cell_power_sd,PP
 k_PP_PC_Cell = [item for subl in k_PP_PC_Cell for item in subl]
 sd_PP_PC_Cell = [item for subl in sd_PP_PC_Cell for item in subl]
 
-[PP_PC_Cell_t,PP_PC_Cell_data,PP_PC_Cell_tfit,PP_PC_Cell_fit,PP_PC_Cell_fit2] = Fit_Fun4(PP_PC_Cell_data0,k_PP_PC_Cell)
+[PP_PC_Cell_t,PP_PC_Cell_data,PP_PC_Cell_tfit,PP_PC_Cell_fit,PP_PC_Cell_fit2] = Plot_Fun4(t,PP_PC_Cell_data0,k_PP_PC_Cell)
 
 plot_data_fit3(PP_PC_Cell_t,PP_PC_Cell_data,PP_PC_Cell_tfit,PP_PC_Cell_fit,PP_PC_Cell_sigma0,"PP_PC_Cell")
 
